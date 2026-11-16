@@ -5,6 +5,9 @@ pipeline {
         timestamps()
         disableConcurrentBuilds()
     }
+    environment {
+        PATH = "C:\\Program Files\\nodejs;C:\\Program Files\\Docker\\Docker\\resources\\bin;C:\\Program Files\\Git\\cmd;${env.PATH}"
+    }
 
     stages {
         stage('Checkout') {
@@ -12,6 +15,7 @@ pipeline {
                 checkout scm
             }
         }
+
 
         stage('Validate Tools') {
             steps {
@@ -27,9 +31,14 @@ pipeline {
 
                     echo Checking Docker Compose
                     docker compose version
+
+                    echo Checking Docker Engine access
+                    docker info --format "Docker Engine: {{.ServerVersion}}"
                 '''
             }
         }
+
+
 
         stage('Build TypeScript Services') {
             steps {
