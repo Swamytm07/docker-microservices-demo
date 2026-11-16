@@ -1,4 +1,5 @@
 import express from 'express';
+import { collectDefaultMetrics, Counter, Histogram, Registry } from 'prom-client';
 import helmet from 'helmet';
 import cors from 'cors';
 import morgan from 'morgan';
@@ -41,6 +42,59 @@ app.use(helmet());
 app.use(cors());
 app.use(morgan('combined'));
 app.use(express.json());
+// Prometheus metrics configuration
+const register = new Registry();
+
+collectDefaultMetrics({ register });
+
+const httpRequestsTotal = new Counter({
+  name: 'http_requests_total',
+  help: 'Total number of HTTP requests',
+  labelNames: ['method', 'route', 'status_code'],
+  registers: [register]
+});
+
+const httpRequestDuration = new Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'HTTP request duration in seconds',
+  labelNames: ['method', 'route', 'status_code'],
+  registers: [register]
+});
+
+// Prometheus metrics endpoint
+app.get('/metrics', async (_req, res) => {
+  try {
+    res.setHeader('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  } catch (error) {
+    res.status(500).end('Unable to generate metrics');
+  }
+});
+
+// HTTP request metrics middleware
+app.use((req, res, next) => {
+  const startTime = process.hrtime();
+
+  res.on('finish', () => {
+    const elapsed = process.hrtime(startTime);
+    const duration = elapsed[0] + elapsed[1] / 1e9;
+
+    const route = req.route
+      ? `${req.baseUrl}${req.route.path}`
+      : 'unmatched';
+
+    const labels = {
+      method: req.method,
+      route,
+      status_code: res.statusCode.toString()
+    };
+
+    httpRequestsTotal.inc(labels);
+    httpRequestDuration.observe(labels, duration);
+  });
+
+  next();
+});
 
 // Initialize database
 async function initDB() {
@@ -99,7 +153,7 @@ app.post('/orders', async (req, res) => {
       if (!productRes.ok) {
         return res.status(400).json({ error: `Product ${item.productId} not found` });
       }
-      const product = await productRes.json();
+      const product = await productRes.json() as { name: string; price: number };
       total += product.price * item.quantity;
       validatedItems.push({ ...item, name: product.name, price: product.price });
     }
