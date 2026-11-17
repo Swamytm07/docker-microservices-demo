@@ -64,6 +64,13 @@ pipeline {
             }
         }
 
+               stage('Automated Tests') {
+            steps {
+                dir('api-gateway') {
+                    bat 'npm test -- --runInBand'
+                }
+            }
+        }
         stage('Build Docker Images') {
             steps {
                 bat '''
