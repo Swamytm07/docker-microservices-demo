@@ -132,6 +132,75 @@ stage('Verify AWS ECR Access') {
         }
     }
 
+stage('Push Images to Amazon ECR') {
+    steps {
+        withCredentials([
+            usernamePassword(
+                credentialsId: 'aws-ecr-credentials',
+                usernameVariable: 'AWS_ACCESS_KEY_ID',
+                passwordVariable: 'AWS_SECRET_ACCESS_KEY'
+            )
+        ]) {
+            bat '''
+                @echo off
+                set AWS_PAGER=
+                set AWS_DEFAULT_REGION=ap-southeast-2
+                set AWS_REGION=ap-southeast-2
+                set AWS_ACCOUNT=590113511490
+                set ECR_REGISTRY=%AWS_ACCOUNT%.dkr.ecr.%AWS_REGION%.amazonaws.com
+                set "AWSCLI=C:\\Program Files\\Amazon\\AWSCLIV2\\aws.exe"
+
+                echo Logging in to Amazon ECR...
+
+                "%AWSCLI%" ecr get-login-password --region %AWS_REGION% --no-cli-pager | docker login --username AWS --password-stdin %ECR_REGISTRY%
+
+                if errorlevel 1 exit /b 1
+
+                echo Tagging Docker images...
+
+                docker tag microservicesassignment-api-gateway:%BUILD_NUMBER% %ECR_REGISTRY%/microservicesassignment-api-gateway:%BUILD_NUMBER%
+                docker tag microservicesassignment-user-service:%BUILD_NUMBER% %ECR_REGISTRY%/microservicesassignment-user-service:%BUILD_NUMBER%
+                docker tag microservicesassignment-product-service:%BUILD_NUMBER% %ECR_REGISTRY%/microservicesassignment-product-service:%BUILD_NUMBER%
+                docker tag microservicesassignment-order-service:%BUILD_NUMBER% %ECR_REGISTRY%/microservicesassignment-order-service:%BUILD_NUMBER%
+
+                docker tag microservicesassignment-api-gateway:%BUILD_NUMBER% %ECR_REGISTRY%/microservicesassignment-api-gateway:latest
+                docker tag microservicesassignment-user-service:%BUILD_NUMBER% %ECR_REGISTRY%/microservicesassignment-user-service:latest
+                docker tag microservicesassignment-product-service:%BUILD_NUMBER% %ECR_REGISTRY%/microservicesassignment-product-service:latest
+                docker tag microservicesassignment-order-service:%BUILD_NUMBER% %ECR_REGISTRY%/microservicesassignment-order-service:latest
+
+                if errorlevel 1 exit /b 1
+
+                echo Pushing API Gateway...
+                docker push %ECR_REGISTRY%/microservicesassignment-api-gateway:%BUILD_NUMBER%
+                if errorlevel 1 exit /b 1
+                docker push %ECR_REGISTRY%/microservicesassignment-api-gateway:latest
+                if errorlevel 1 exit /b 1
+
+                echo Pushing User Service...
+                docker push %ECR_REGISTRY%/microservicesassignment-user-service:%BUILD_NUMBER%
+                if errorlevel 1 exit /b 1
+                docker push %ECR_REGISTRY%/microservicesassignment-user-service:latest
+                if errorlevel 1 exit /b 1
+
+                echo Pushing Product Service...
+                docker push %ECR_REGISTRY%/microservicesassignment-product-service:%BUILD_NUMBER%
+                if errorlevel 1 exit /b 1
+                docker push %ECR_REGISTRY%/microservicesassignment-product-service:latest
+                if errorlevel 1 exit /b 1
+
+                echo Pushing Order Service...
+                docker push %ECR_REGISTRY%/microservicesassignment-order-service:%BUILD_NUMBER%
+                if errorlevel 1 exit /b 1
+                docker push %ECR_REGISTRY%/microservicesassignment-order-service:latest
+                if errorlevel 1 exit /b 1
+
+                echo All four services successfully pushed to Amazon ECR.
+            '''
+        }
+    }
+}
+
+
     post {
         success {
             echo 'Microservices CI pipeline completed successfully.'
