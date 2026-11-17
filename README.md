@@ -136,3 +136,5 @@ npm run test:integration
 ## License
 
 MIT
+
+<!-- CI auto-trigger test -->
