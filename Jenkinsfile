@@ -79,6 +79,18 @@ pipeline {
             }
         }
 
+stage('Verify AWS Account') {
+    steps {
+        bat '''
+            echo Checking AWS Account...
+            aws sts get-caller-identity --no-cli-pager
+            echo Checking AWS Region...
+            aws configure get region
+        '''
+    }
+}
+
+
         stage('Build TypeScript Services') {
             steps {
                 dir('api-gateway') {
